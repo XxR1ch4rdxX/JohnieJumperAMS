@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Ventas{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Registro de Ventas</h1>
+
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5>Productos Disponibles</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('procesar_venta') }}">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos %}
+                    <tr>
+                        <td>{{ producto[1] }}</td>
+                        <td>${{ "%.2f"|format(producto[2]) }}</td>
+                        <td>{{ producto[3] }}</td>
+                        <td>
+                            <input type="number" name="producto_{{ producto[0] }}" 
+                                   min="0" max="{{ producto[3] }}" value="0" 
+                                   class="form-control cantidad" style="width: 80px;">
+                        </td>
+                        <td class="subtotal">$0.00</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end"><strong>Total:</strong></td>
+                        <td id="totalVenta">$0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div class="d-grid gap-2 mt-3">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-cash"></i> Registrar Venta
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calcular subtotales y total cuando cambia la cantidad
+    document.querySelectorAll('.cantidad').forEach(input => {
+        input.addEventListener('change', function() {
+            const row = this.closest('tr');
+            const precio = parseFloat(row.cells[1].textContent.replace('$', ''));
+            const cantidad = parseInt(this.value);
+            const subtotal = precio * cantidad;
+            
+            row.cells[4].textContent = '$' + subtotal.toFixed(2);
+            calcularTotal();
+        });
+    });
+
+    function calcularTotal() {
+        let total = 0;
+        document.querySelectorAll('.subtotal').forEach(cell => {
+            total += parseFloat(cell.textContent.replace('$', ''));
+        });
+        document.getElementById('totalVenta').textContent = '$' + total.toFixed(2);
+    }
+});
+</script>
+{% endblock %}

@@ -27,6 +27,14 @@ content %}
       Stock bajo
     </a>
     <a
+      href="{{ url_for('productos', filtro='fecha_agregado') }}"
+      class="btn btn-sm btn-outline-info"
+      title="Ordenar por fecha agregado (más recientes)"
+    >
+      Recientes
+    </a>
+
+    <a
       href="{{ url_for('productos', filtro='fecha_proxima') }}"
       class="btn btn-sm btn-outline-warning"
       title="Ordenar por fecha de caducidad más próxima"
@@ -109,6 +117,8 @@ content %}
         <th>Fecha de Caducidad</th>
         <th>Categoria</th>
         <th>Proveedor</th>
+        <th>Acciones</th>
+        <!-- Nueva columna -->
       </tr>
       {% for producto in productos %}
       <tr>
@@ -120,9 +130,64 @@ content %}
         <td>{{ producto[5] }}</td>
         <td>{{ producto[6] }}</td>
         <td>{{ producto[7] }}</td>
+        <td>
+          <!-- Botón para eliminar producto -->
+          <button
+            class="btn btn-sm btn-danger eliminar-producto"
+            data-id="{{ producto[0] }}"
+            data-nombre="{{ producto[1] }}"
+          >
+            <i class="bi bi-trash"></i> Eliminar
+          </button>
+        </td>
       </tr>
       {% endfor %}
     </table>
+
+    <!-- Modal de confirmación para eliminar -->
+    <div
+      class="modal fade"
+      id="confirmarEliminarModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirmar Eliminación</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p>
+              ¿Está seguro de eliminar el producto
+              <strong id="nombreProductoEliminar"></strong>?
+            </p>
+            <p class="text-danger">Esta acción no se puede deshacer.</p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              id="btnConfirmarEliminar"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <!-- Modal para agregar producto -->
   <div
@@ -171,7 +236,9 @@ content %}
               ></textarea>
             </div>
             <div class="mb-3">
-              <label for="precio" class="form-label">Precio</label>
+              <label for="precio" class="form-label"
+                >Precio por Unidad o Kg</label
+              >
               <input
                 type="number"
                 step="0.01"
@@ -201,6 +268,18 @@ content %}
                 id="fecha_caducidad"
                 name="fecha_caducidad"
               />
+            </div>
+
+            <div class="form-check mb-3">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="no_caduca"
+                name="no_caduca"
+              />
+              <label class="form-check-label" for="no_caduca"
+                >No tiene fecha de caducidad</label
+              >
             </div>
             <div class="mb-3">
               <label for="categoria" class="form-label">Categoría</label>
@@ -260,15 +339,47 @@ content %}
     >
       <h3>Agregar Nuevo Producto</h3>
     </div>
-    <div
-      class="eliminarproducto"
-      data-bs-toggle="modal"
-      data-bs-target="#agregarProductoModal"
-      style="cursor: pointer"
-    >
-      <h3>Eliminar Producto</h3>
-    </div>
-    <!-- ... otros cards ... -->
+
   </div>
   {% endblock %}
 </div>
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let productoAEliminar = null;
+    
+    // Mostrar modal de confirmación al hacer clic en eliminar
+    $('.eliminar-producto').click(function() {
+        productoAEliminar = {
+            id: $(this).data('id'),
+            nombre: $(this).data('nombre')
+        };
+        $('#nombreProductoEliminar').text(productoAEliminar.nombre);
+        $('#confirmarEliminarModal').modal('show');
+    });
+    
+    // Confirmar eliminación
+    $('#btnConfirmarEliminar').click(function() {
+        if (productoAEliminar) {
+            $.ajax({
+                url: "{{ url_for('eliminar_producto') }}",
+                method: 'POST',
+                data: { id: productoAEliminar.id },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload(); // Recargar la página para ver los cambios
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                },
+                error: function() {
+                    alert('Error al comunicarse con el servidor');
+                }
+            });
+        }
+        $('#confirmarEliminarModal').modal('hide');
+    });
+});
+</script>
+{% endblock %}

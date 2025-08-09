@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Pedidos a Proveedores{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Pedidos a Proveedores</h1>
+
+<div class="row">
+    <!-- Formulario para nuevo pedido -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5>Nuevo Pedido</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('procesar_pedido') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Proveedor</label>
+                        <select name="proveedor_id" class="form-select" required>
+                            <option value="">Seleccionar proveedor</option>
+                            {% for proveedor in proveedores %}
+                            <option value="{{ proveedor[0] }}">{{ proveedor[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in productos %}
+                            <tr>
+                                <td>{{ producto[1] }}</td>
+                                <td>{{ producto[2] }}</td>
+                                <td>
+                                    <input type="number" name="producto_{{ producto[0] }}" 
+                                           min="0" value="0" class="form-control" style="width: 80px;">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-circle"></i> Registrar Pedido
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pedidos pendientes -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5>Pedidos Pendientes</h5>
+            </div>
+            <div class="card-body">
+                {% if pedidos_pendientes %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th># Pedido</th>
+                                <th>Proveedor</th>
+                                <th>Fecha</th>
+                                <th>Total</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pedido in pedidos_pendientes %}
+                            <tr>
+                                <td>{{ pedido[0] }}</td>
+                                <td>{{ pedido[1] }}</td>
+                                <td>{{ pedido[2].strftime('%d/%m/%Y') }}</td>
+                                <td>${{ "%.2f"|format(pedido[3]) }}</td>
+                                <td>
+                                    <a href="{{ url_for('recibir_pedido', pedido_id=pedido[0]) }}" 
+                                       class="btn btn-sm btn-success"
+                                       onclick="return confirm('¿Marcar este pedido como recibido?')">
+                                        <i class="bi bi-check-lg"></i> Recibir
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">No hay pedidos pendientes</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

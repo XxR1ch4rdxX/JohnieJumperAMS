@@ -24,3 +24,19 @@
     border-radius: 10px;
     padding: 10px;
 }
+
+/* Estilo para el botón de eliminar */
+.eliminar-producto {
+    transition: all 0.3s ease;
+}
+
+.eliminar-producto:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 5px rgba(220, 53, 69, 0.5);
+}
+
+/* Modal de confirmación */
+#confirmarEliminarModal .modal-header {
+    background-color: #dc3545;
+    color: white;
+}

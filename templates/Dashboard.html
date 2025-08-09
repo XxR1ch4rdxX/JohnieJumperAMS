@@ -1,20 +1,62 @@
 {% extends 'base.html' %}
-{% block title %}El Gallo de Oro{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-<div class="cards">
-    <div class="card green">
-        <h3>Ganancias Hoy</h3>
-        <p>$8,102.32</p>
+<h1>Resumen General</h1>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Citas Hoy</h5>
+                <p class="card-text display-4">{{ citas_hoy|length }}</p>
+                <a href="{{ url_for('citas') }}" class="text-white">Ver todas</a>
+            </div>
+        </div>
     </div>
-    <div class="card blue">
-        <h3>Usuarios Nuevos</h3>
-        <p>138,102</p>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Ventas del Mes</h5>
+                <p class="card-text display-4">${{ "%.2f"|format(ventas_mes|default(0)) }}</p>
+                <a href="{{ url_for('informes') }}" class="text-white">Ver detalles</a>
+            </div>
+        </div>
     </div>
-    <div class="card dark">
-        <h3>Posts Nuevos</h3>
-        <p>153,900</p>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h5 class="card-title">Stock Bajo</h5>
+                <p class="card-text display-4">{{ productos_stock_bajo|length }}</p>
+                <a href="{{ url_for('productos', filtro='stock', valor=5) }}" class="text-dark">Ver productos</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Últimas Citas</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <!-- Tabla con últimas citas -->
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Productos Más Vendidos</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <!-- Tabla con productos más vendidos -->
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
