@@ -1,0 +1,26 @@
+.btnproduct{
+    background-color: #55171a;
+    color: white;
+    border-radius: 10px;
+    margin-top: 10px;
+    text-decoration-line: none;
+
+}
+
+.btnproduct :hover {
+    background-color: white;
+    color: #55171a;
+}
+
+.agregarproducto{
+    background-color: green;
+    color: white;
+    border-radius: 10px;
+    padding: 10px;
+}
+.eliminarproducto{
+    background-color: red;
+    color: white;
+    border-radius: 10px;
+    padding: 10px;
+}
