@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% block title %}Pedidos a Proveedores{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Gestión de Pedidos a Proveedores</h1>
+
+<div class="row">
+    <!-- Productos con stock bajo -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5><i class="bi bi-exclamation-triangle"></i> Productos con Stock Bajo</h5>
+                <small>Productos que necesitan reabastecimiento</small>
+            </div>
+            <div class="card-body">
+                {% if productos %}
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock</th>
+                                <th>Precio</th>
+                                <th>Proveedor</th>
+                                <th>Seleccionar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in productos %}
+                            <tr data-proveedor="{{ producto[4] }}">
+                                <td>
+                                    <strong>{{ producto[1] }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if producto[2] < 5 %}danger{% elif producto[2] < 10 %}warning{% else %}success{% endif %}">
+                                        {{ producto[2] }}
+                                    </span>
+                                </td>
+                                <td>${{ "%.2f"|format(producto[5]) }}</td>
+                                <td>
+                                    <small>{{ producto[3] }}</small>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="agregarProductoPedido({{ producto[0] }}, '{{ producto[1] }}', {{ producto[5] }}, {{ producto[4] }}, '{{ producto[3] }}')">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> Todos los productos tienen stock suficiente
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de pedido -->
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-cart-plus"></i> Crear Nuevo Pedido</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('procesar_pedido') }}" id="formPedido">
+                    <!-- Selección de proveedor -->
+                    <div class="mb-3">
+                        <label class="form-label">Proveedor *</label>
+                        <select name="proveedor_id" id="proveedorSelect" class="form-select" required onchange="filtrarPorProveedor()">
+                            <option value="">Seleccionar proveedor</option>
+                            {% for proveedor in proveedores %}
+                            <option value="{{ proveedor[0] }}">{{ proveedor[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Los productos se filtrarán automáticamente por proveedor</div>
+                    </div>
+
+                    <!-- Productos del pedido -->
+                    <div id="productosPedido" style="display: none;">
+                        <h6>Productos del Pedido</h6>
+                        <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                            <table class="table table-sm">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Stock</th>
+                                        <th>Cantidad</th>
+                                        <th>Subtotal</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaProductosPedido">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Resumen del pedido -->
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><strong>Total del Pedido:</strong></span>
+                                <span class="h5 text-primary" id="totalPedido">$0.00</span>
+                            </div>
+                            <div class="mt-2">
+                                <label class="form-label">Notas del Pedido (opcional)</label>
+                                <textarea class="form-control" rows="2" placeholder="Observaciones adicionales..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Enviar Pedido
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="limpiarPedido()">
+                                <i class="bi bi-trash"></i> Limpiar Pedido
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pedidos pendientes y completados -->
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-clock-history"></i> Pedidos Pendientes</h5>
+            </div>
+            <div class="card-body">
+                {% if pedidos_pendientes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th># Pedido</th>
+                                <th>Proveedor</th>
+                                <th>Fecha</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pedido in pedidos_pendientes %}
+                            <tr>
+                                <td>
+                                    <strong>#{{ pedido[0] }}</strong>
+                                </td>
+                                <td>{{ pedido[1] }}</td>
+                                <td>
+                                    <small>{{ pedido[2].strftime('%d/%m/%Y') }}</small>
+                                </td>
+                                <td>
+                                    <strong>${{ "%.2f"|format(pedido[3]) }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning">{{ pedido[4] or 'Pendiente' }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-info" onclick="verDetallesPedido({{ pedido[0] }})" 
+                                                title="Ver detalles">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <a href="{{ url_for('recibir_pedido', pedido_id=pedido[0]) }}" 
+                                           class="btn btn-outline-success"
+                                           onclick="return confirm('¿Marcar este pedido como recibido y actualizar el inventario?')"
+                                           title="Marcar como recibido">
+                                            <i class="bi bi-check-lg"></i>
+                                        </a>
+                                        <button class="btn btn-outline-danger" onclick="cancelarPedido({{ pedido[0] }})"
+                                                title="Cancelar pedido">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No hay pedidos pendientes
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas rápidas -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5><i class="bi bi-graph-up"></i> Estadísticas de Pedidos</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-muted">Productos con stock crítico</h6>
+                    <h3 class="text-danger">{{ productos|length }}</h3>
+                </div>
+                <div class="mb-3">
+                    <h6 class="text-muted">Pedidos pendientes</h6>
+                    <h3 class="text-warning">{{ pedidos_pendientes|length }}</h3>
+                </div>
+                <div class="mb-3">
+                    <h6 class="text-muted">Total en pedidos pendientes</h6>
+                    <h3 class="text-info">
+                        ${{ "%.2f"|format(pedidos_pendientes|sum(attribute=3)|default(0)) }}
+                    </h3>
+                </div>
+                <hr>
+                <div class="d-grid">
+                    <button class="btn btn-outline-primary" onclick="generarReportePedidos()">
+                        <i class="bi bi-file-earmark-text"></i> Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles de pedido -->
+<div class="modal fade" id="detallesPedidoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Pedido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="contenidoDetallesPedido">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let pedidoActual = {};
+let proveedorSeleccionado = null;
+
+function filtrarPorProveedor() {
+    const proveedorId = document.getElementById('proveedorSelect').value;
+    const productosPedidoDiv = document.getElementById('productosPedido');
+    
+    if (proveedorId) {
+        proveedorSeleccionado = proveedorId;
+        productosPedidoDiv.style.display = 'block';
+        
+        // Filtrar productos por proveedor en la tabla de stock bajo
+        const filas = document.querySelectorAll('[data-proveedor]');
+        filas.forEach(fila => {
+            if (fila.getAttribute('data-proveedor') === proveedorId) {
+                fila.style.display = '';
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+        
+        // Limpiar pedido actual si cambia de proveedor
+        limpiarPedido();
+    } else {
+        productosPedidoDiv.style.display = 'none';
+        // Mostrar todas las filas
+        const filas = document.querySelectorAll('[data-proveedor]');
+        filas.forEach(fila => {
+            fila.style.display = '';
+        });
+    }
+}
+
+function agregarProductoPedido(id, nombre, precio, proveedorId, proveedorNombre) {
+    // Verificar si el proveedor coincide con el seleccionado
+    if (proveedorSeleccionado && proveedorSeleccionado !== proveedorId.toString()) {
+        alert('Seleccione primero el proveedor: ' + proveedorNombre);
+        return;
+    }
+    
+    // Si no hay proveedor seleccionado, seleccionarlo automáticamente
+    if (!proveedorSeleccionado) {
+        document.getElementById('proveedorSelect').value = proveedorId;
+        filtrarPorProveedor();
+    }
+    
+    // Agregar o incrementar producto en el pedido
+    if (pedidoActual[id]) {
+        pedidoActual[id].cantidad += 1;
+    } else {
+        pedidoActual[id] = {
+            nombre: nombre,
+            precio: precio,
+            cantidad: 1
+        };
+    }
+    
+    actualizarTablaPedido();
+}
+
+function actualizarTablaPedido() {
+    const tabla = document.getElementById('tablaProductosPedido');
+    const totalElement = document.getElementById('totalPedido');
+    
+    let html = '';
+    let total = 0;
+    
+    for (const [id, producto] of Object.entries(pedidoActual)) {
+        const subtotal = producto.precio * producto.cantidad;
+        total += subtotal;
+        
+        html += `
+            <tr>
+                <td>${producto.nombre}</td>
+                <td>-</td>
+                <td>
+                    <div class="input-group input-group-sm" style="width: 120px;">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                onclick="cambiarCantidadPedido('${id}', -1)">-</button>
+                        <input type="number" name="producto_${id}" value="${producto.cantidad}" 
+                               min="1" class="form-control text-center"
+                               onchange="actualizarCantidadPedido('${id}', this.value)">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                onclick="cambiarCantidadPedido('${id}', 1)">+</button>
+                    </div>
+                </td>
+                <td>${subtotal.toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                            onclick="eliminarProductoPedido('${id}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+    
+    tabla.innerHTML = html;
+    totalElement.textContent = ' + total.toFixed(2);
+}
+
+function cambiarCantidadPedido(id, cambio) {
+    if (pedidoActual[id]) {
+        pedidoActual[id].cantidad = Math.max(1, pedidoActual[id].cantidad + cambio);
+        actualizarTablaPedido();
+    }
+}
+
+function actualizarCantidadPedido(id, nuevaCantidad) {
+    if (pedidoActual[id] && nuevaCantidad > 0) {
+        pedidoActual[id].cantidad = parseInt(nuevaCantidad);
+        actualizarTablaPedido();
+    }
+}
+
+function eliminarProductoPedido(id) {
+    delete pedidoActual[id];
+    actualizarTablaPedido();
+}
+
+function limpiarPedido() {
+    pedidoActual = {};
+    actualizarTablaPedido();
+}
+
+function verDetallesPedido(pedidoId) {
+    // Esta función haría una llamada AJAX para obtener los detalles
+    // Por ahora solo mostramos el modal
+    document.getElementById('contenidoDetallesPedido').innerHTML = `
+        <p>Cargando detalles del pedido #${pedidoId}...</p>
+    `;
+    new bootstrap.Modal(document.getElementById('detallesPedidoModal')).show();
+}
+
+function cancelarPedido(pedidoId) {
+    if (confirm('¿Está seguro de cancelar este pedido?')) {
+        // Aquí implementarías la lógica para cancelar el pedido
+        alert('Funcionalidad de cancelación pendiente de implementar');
+    }
+}
+
+function generarReportePedidos() {
+    // Función para generar reporte de pedidos
+    alert('Funcionalidad de reporte pendiente de implementar');
+}
+
+// Validar formulario antes de enviar
+document.getElementById('formPedido').addEventListener('submit', function(e) {
+    if (Object.keys(pedidoActual).length === 0) {
+        e.preventDefault();
+        alert('Debe agregar al menos un producto al pedido');
+    }
+});
+</script>
+
+<style>
+.sticky-top {
+    top: 0;
+}
+
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    margin: 0 1px;
+}
+
+tr:hover {
+    background-color: rgba(0,123,255,0.05);
+}
+
+.input-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+</style>
+{% endblock %}

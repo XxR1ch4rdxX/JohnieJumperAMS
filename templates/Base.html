@@ -16,16 +16,23 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   </head>
+
   <body>
+      {{ moment.include_moment() }} {{ moment.locale('es') }}
     <div class="sidebar">
       {% with mensajes = get_flashed_messages(with_categories=true) %} {% if
       mensajes %}
       <div class="mt-3">
         {% for categoria, mensaje in mensajes %}
         <div
-          class="alert alert-{{ categoria }} alert-dismissible fade show"
+          class="alert alert-{{ 'danger' if categoria == 'error' else categoria }} alert-dismissible fade show"
           role="alert"
         >
           {{ mensaje }}
@@ -39,54 +46,201 @@
         {% endfor %}
       </div>
       {% endif %} {% endwith %}
-      <h2>El Gallo de oro</h2>
+
+      <div class="logo-section text-center mb-4">
+        <h2>El Gallo de Oro</h2>
+        <small class="text-muted">Sistema Veterinario</small>
+      </div>
+
       <ul class="menu">
-        <li><a href="{{ url_for('dashboard') }}">Vista Principal</a></li>
-        <li><a href="{{ url_for('ventas') }}">Venta</a></li>
-        <li><a href="{{ url_for('productos') }}">Productos</a></li>
-        <li><a href="#">Pedidos</a></li>
-        <li><a href="#">Servicios</a></li>
-        <li><a href="{{ url_for('citas') }}">Citas</a></li>
+        <li>
+          <a href="{{ url_for('dashboard') }}"
+            ><i class="bi bi-house"></i> Vista Principal</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('ventas') }}"
+            ><i class="bi bi-cart"></i> Ventas</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('productos') }}"
+            ><i class="bi bi-box"></i> Productos</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('pedidos') }}"
+            ><i class="bi bi-truck"></i> Pedidos</a
+          >
+        </li>
+        <li>
+          <a href="#"><i class="bi bi-heart-pulse"></i> Servicios</a>
+        </li>
+        <li>
+          <a href="{{ url_for('citas') }}"
+            ><i class="bi bi-calendar"></i> Citas</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('informes') }}"
+            ><i class="bi bi-graph-up"></i> Informes</a
+          >
+        </li>
       </ul>
 
       <div class="user-menu mt-auto">
         {% if 'user_id' in session %}
-        <div class="user-info">
-          <p>Hola, {{ session.user_name }}</p>
-          <small>{{ session.user_role|capitalize }}</small>
+        <div class="user-info p-3 mb-3 bg-light rounded">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-person-circle me-2"></i>
+            <div>
+              <p class="mb-0 fw-bold">{{ session.user_name }}</p>
+              <small class="text-muted"
+                >{{ session.user_role|capitalize }}</small
+              >
+            </div>
+          </div>
         </div>
         <ul class="menu">
           {% if session.user_role == 'admin' %}
-          <li><a href="{{ url_for('listar_usuarios') }}">Usuarios</a></li>
+          <li>
+            <a href="{{ url_for('listar_usuarios') }}"
+              ><i class="bi bi-people"></i> Usuarios</a
+            >
+          </li>
+          <li>
+            <a href="{{ url_for('registro') }}"
+              ><i class="bi bi-person-plus"></i> Nuevo Usuario</a
+            >
+          </li>
           {% endif %}
-          <li><a href="{{ url_for('logout') }}">Cerrar Sesión</a></li>
+          <li>
+            <a href="{{ url_for('logout') }}"
+              ><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a
+            >
+          </li>
         </ul>
         {% else %}
         <ul class="menu">
-          <li><a href="{{ url_for('login') }}">Iniciar Sesión</a></li>
+          <li>
+            <a href="{{ url_for('login') }}"
+              ><i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión</a
+            >
+          </li>
         </ul>
         {% endif %}
       </div>
     </div>
-    <div class="main">{% block content %}{% endblock %}</div>
+
+    <div class="main">
+      <div class="container-fluid">{% block content %}{% endblock %}</div>
+    </div>
+
+    <!-- Scripts adicionales -->
+    {% block scripts %}{% endblock %}
   </body>
 </html>
+
 <script>
   document.addEventListener("DOMContentLoaded", function () {
+    // Funcionalidad para checkbox de fecha de caducidad
     const noCad = document.getElementById("no_caduca");
     const fechaInput = document.getElementById("fecha_caducidad");
 
-    if (!noCad || !fechaInput) return;
+    if (noCad && fechaInput) {
+      noCad.addEventListener("change", function () {
+        if (this.checked) {
+          fechaInput.value = "";
+          fechaInput.disabled = true;
+        } else {
+          fechaInput.disabled = false;
+        }
+      });
+    }
 
-    noCad.addEventListener("change", function () {
-      if (this.checked) {
-        fechaInput.value = "";
-        fechaInput.disabled = true;
-      } else {
-        fechaInput.disabled = false;
-        // si quieres, puedes dar foco:
-        // fechaInput.focus();
+    // Auto-dismissal de alertas después de 5 segundos
+    const alerts = document.querySelectorAll(".alert");
+    alerts.forEach((alert) => {
+      if (!alert.classList.contains("alert-danger")) {
+        setTimeout(() => {
+          const bsAlert = new bootstrap.Alert(alert);
+          bsAlert.close();
+        }, 5000);
       }
     });
   });
 </script>
+
+<style>
+  /* Estilos adicionales para mejorar la apariencia */
+  .sidebar {
+    width: 280px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    overflow-y: auto;
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar .menu {
+    list-style: none;
+    padding: 0;
+  }
+
+  .sidebar .menu li {
+    margin-bottom: 10px;
+  }
+
+  .sidebar .menu li a {
+    display: block;
+    padding: 12px 15px;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .sidebar .menu li a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+  }
+
+  .sidebar .menu li a i {
+    margin-right: 10px;
+    width: 16px;
+  }
+
+  .main {
+    margin-left: 280px;
+    padding: 20px;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+  }
+
+  .logo-section {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+  }
+
+  .user-info {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar {
+      width: 100%;
+      height: auto;
+      position: relative;
+    }
+
+    .main {
+      margin-left: 0;
+    }
+  }
+</style>

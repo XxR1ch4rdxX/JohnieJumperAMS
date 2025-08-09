@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 09-08-2025 a las 21:39:59
+-- Tiempo de generación: 09-08-2025 a las 22:43:21
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.0.30
 
@@ -32,6 +32,11 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `actualizar_estado_cita` (IN `p_cita
     WHERE id_cita = p_cita_id;
 END$$
 
+CREATE DEFINER=`root`@`localhost` PROCEDURE `agregar_detalle_pedido` (IN `p_pedido_id` INT, IN `p_producto_id` INT, IN `p_cantidad` INT, IN `p_precio` DECIMAL(10,2))   BEGIN
+    INSERT INTO detallespedidos (pedido_id, producto_id, cantidad, precio_unitario)
+    VALUES (p_pedido_id, p_producto_id, p_cantidad, p_precio);
+END$$
+
 CREATE DEFINER=`root`@`localhost` PROCEDURE `agregar_detalle_venta` (IN `p_venta_id` INT, IN `p_producto_id` INT, IN `p_cantidad` INT)   BEGIN
     DECLARE v_precio DECIMAL(10,2);
     DECLARE v_stock_actual INT;
@@ -55,6 +60,12 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `agregar_detalle_venta` (IN `p_venta
         SET stock = stock - p_cantidad 
         WHERE id_producto = p_producto_id;
     END IF;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `crear_pedido` (IN `p_proveedor_id` INT, IN `p_total` DECIMAL(10,2))   BEGIN
+    INSERT INTO pedidos (proveedor_id, fecha, estado_id, total)
+    VALUES (p_proveedor_id, NOW(), 1, p_total);
+    SELECT LAST_INSERT_ID() as pedido_id;
 END$$
 
 CREATE DEFINER=`root`@`localhost` PROCEDURE `eliminar_producto` (IN `p_id_producto` INT)   BEGIN
@@ -576,7 +587,6 @@ CREATE TABLE `productos` (
 INSERT INTO `productos` (`id_producto`, `nombre`, `descripcion`, `precio`, `stock`, `fecha_caducidad`, `categoria_id`, `proveedor_id`, `fecha_agregado`) VALUES
 (1, 'Maíz Criollo', 'Saco de 20kg para alimentación animal', 11.08, 14, '2025-11-26', 1, 8, '2025-08-07'),
 (2, 'Desparasitante Bovino', 'Tratamiento antiparasitario para reses', 156.75, 94, '2025-10-04', 2, 1, '2025-08-03'),
-(3, 'Vitapollo', 'Suplemento vitamínico para aves de corral', 117.37, 67, '2026-05-17', 3, 2, '2025-08-01'),
 (4, 'Manta Térmica', 'Cobertor para establos en invierno', 181.82, 10, '2026-06-30', 4, 1, '2025-08-01'),
 (5, 'Jarabe Expectorante', 'Para problemas respiratorios en cabras', 177.13, 64, '2026-05-28', 2, 1, '2025-08-01'),
 (6, 'Pico de Oropel', 'Semilla de maíz para forraje', 172.14, 94, '2026-05-16', 7, 1, '2025-08-02'),

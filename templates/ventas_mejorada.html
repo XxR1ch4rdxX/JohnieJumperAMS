@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% block title %}Ventas{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Registro de Ventas</h1>
+
+<div class="row">
+    <!-- Formulario de venta -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-cart"></i> Nueva Venta</h5>
+            </div>
+            <div class="card-body">
+                <!-- Filtros de búsqueda -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <input type="text" id="buscarProducto" class="form-control" 
+                               placeholder="Buscar producto..." onkeyup="filtrarProductos()">
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filtroCategoria" class="form-select" onchange="filtrarProductos()">
+                            <option value="">Todas las categorías</option>
+                            <!-- Se llenarían dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-outline-secondary" onclick="limpiarCarrito()">
+                            <i class="bi bi-trash"></i> Limpiar Carrito
+                        </button>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('procesar_venta') }}" id="formVenta">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover" id="tablaProductos">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Precio</th>
+                                    <th>Stock</th>
+                                    <th>Cantidad</th>
+                                    <th>Subtotal</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for producto in productos %}
+                                <tr class="producto-row" data-nombre="{{ producto[1]|lower }}" 
+                                    data-categoria="{{ producto[4]|lower }}">
+                                    <td>
+                                        <strong>{{ producto[1] }}</strong><br>
+                                        <small class="text-muted">{{ producto[4] }} - {{ producto[5] }}</small>
+                                    </td>
+                                    <td class="precio">${{ "%.2f"|format(producto[2]) }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if producto[3] < 10 %}warning{% elif producto[3] < 5 %}danger{% else %}success{% endif %}">
+                                            {{ producto[3] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="input-group input-group-sm" style="width: 120px;">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="cambiarCantidad({{ producto[0] }}, -1)">-</button>
+                                            <input type="number" name="producto_{{ producto[0] }}" 
+                                                   id="cantidad_{{ producto[0] }}"
+                                                   min="0" max="{{ producto[3] }}" value="0" 
+                                                   class="form-control text-center cantidad"
+                                                   data-precio="{{ producto[2] }}"
+                                                   onchange="calcularSubtotal(this)">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="cambiarCantidad({{ producto[0] }}, 1)">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="subtotal" id="subtotal_{{ producto[0] }}">$0.00</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-success" 
+                                                onclick="agregarRapido({{ producto[0] }})">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen del carrito -->
+    <div class="col-md-4">
+        <div class="card sticky-top">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-receipt"></i> Resumen de Venta</h5>
+            </div>
+            <div class="card-body">
+                <div id="carritoVacio" class="text-center text-muted">
+                    <i class="bi bi-cart-x display-1"></i>
+                    <p>No hay productos seleccionados</p>
+                </div>
+                
+                <div id="resumenCarrito" style="display: none;">
+                    <div class="mb-3" id="productosCarrito"></div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span><strong>Total:</strong></span>
+                        <span class="h4 text-success" id="totalVenta">$0.00</span>
+                    </div>
+                    
+                    <!-- Información del cliente (opcional) -->
+                    <div class="mb-3">
+                        <label class="form-label">Cliente (opcional)</label>
+                        <input type="text" class="form-control" id="nombreCliente" 
+                               placeholder="Nombre del cliente">
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-lg" onclick="procesarVenta()">
+                            <i class="bi bi-cash"></i> Procesar Venta
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="imprimirTicket()">
+                            <i class="bi bi-printer"></i> Imprimir Ticket
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="confirmarVentaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Venta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Confirma el registro de esta venta?</p>
+                <div id="resumenVentaModal"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmarVenta()">
+                    <i class="bi bi-check-lg"></i> Confirmar Venta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let carrito = {};
+
+function filtrarProductos() {
+    const busqueda = document.getElementById('buscarProducto').value.toLowerCase();
+    const categoria = document.getElementById('filtroCategoria').value.toLowerCase();
+    const filas = document.querySelectorAll('.producto-row');
+    
+    filas.forEach(fila => {
+        const nombre = fila.getAttribute('data-nombre');
+        const categoriaProducto = fila.getAttribute('data-categoria');
+        
+        const coincideNombre = nombre.includes(busqueda);
+        const coincideCategoria = categoria === '' || categoriaProducto.includes(categoria);
+        
+        if (coincideNombre && coincideCategoria) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+function cambiarCantidad(productoId, cambio) {
+    const input = document.getElementById(`cantidad_${productoId}`);
+    const cantidadActual = parseInt(input.value);
+    const nuevaCantidad = Math.max(0, Math.min(parseInt(input.max), cantidadActual + cambio));
+    
+    input.value = nuevaCantidad;
+    calcularSubtotal(input);
+}
+
+function agregarRapido(productoId) {
+    cambiarCantidad(productoId, 1);
+}
+
+function calcularSubtotal(input) {
+    const precio = parseFloat(input.getAttribute('data-precio'));
+    const cantidad = parseInt(input.value);
+    const productoId = input.name.replace('producto_', '');
+    const subtotal = precio * cantidad;
+    
+    document.getElementById(`subtotal_${productoId}`).textContent = '$' + subtotal.toFixed(2);
+    
+    // Actualizar carrito
+    if (cantidad > 0) {
+        carrito[productoId] = {
+            cantidad: cantidad,
+            precio: precio,
+            subtotal: subtotal,
+            nombre: input.closest('tr').querySelector('strong').textContent
+        };
+    } else {
+        delete carrito[productoId];
+    }
+    
+    actualizarResumenCarrito();
+}
+
+function actualizarResumenCarrito() {
+    const productosCarrito = document.getElementById('productosCarrito');
+    const carritoVacio = document.getElementById('carritoVacio');
+    const resumenCarrito = document.getElementById('resumenCarrito');
+    const totalVenta = document.getElementById('totalVenta');
+    
+    if (Object.keys(carrito).length === 0) {
+        carritoVacio.style.display = 'block';
+        resumenCarrito.style.display = 'none';
+        return;
+    }
+    
+    carritoVacio.style.display = 'none';
+    resumenCarrito.style.display = 'block';
+    
+    let html = '';
+    let total = 0;
+    
+    for (const [id, item] of Object.entries(carrito)) {
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <small>${item.nombre}</small><br>
+                    <span class="text-muted">${item.cantidad} x $${item.precio.toFixed(2)}</span>
+                </div>
+                <strong>$${item.subtotal.toFixed(2)}</strong>
+            </div>
+        `;
+        total += item.subtotal;
+    }
+    
+    productosCarrito.innerHTML = html;
+    totalVenta.textContent = '$' + total.toFixed(2);
+}
+
+function limpiarCarrito() {
+    carrito = {};
+    document.querySelectorAll('.cantidad').forEach(input => {
+        input.value = 0;
+        calcularSubtotal(input);
+    });
+}
+
+function procesarVenta() {
+    if (Object.keys(carrito).length === 0) {
+        alert('Debe seleccionar al menos un producto');
+        return;
+    }
+    
+    // Mostrar modal de confirmación
+    let resumen = '<div class="table-responsive"><table class="table table-sm">';
+    resumen += '<tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr>';
+    
+    let total = 0;
+    for (const [id, item] of Object.entries(carrito)) {
+        resumen += `<tr>
+            <td>${item.nombre}</td>
+            <td>${item.cantidad}</td>
+            <td>$${item.precio.toFixed(2)}</td>
+            <td>$${item.subtotal.toFixed(2)}</td>
+        </tr>`;
+        total += item.subtotal;
+    }
+    
+    resumen += `<tr class="table-success"><td colspan="3"><strong>TOTAL</strong></td><td><strong>$${total.toFixed(2)}</strong></td></tr>`;
+    resumen += '</table></div>';
+    
+    document.getElementById('resumenVentaModal').innerHTML = resumen;
+    new bootstrap.Modal(document.getElementById('confirmarVentaModal')).show();
+}
+
+function confirmarVenta() {
+    document.getElementById('formVenta').submit();
+}
+
+function imprimirTicket() {
+    if (Object.keys(carrito).length === 0) {
+        alert('No hay productos en el carrito');
+        return;
+    }
+    
+    // Generar ticket para imprimir
+    let ticket = `
+        <div style="width: 300px; font-family: monospace; font-size: 12px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2>EL GALLO DE ORO</h2>
+                <p>Veterinaria y Suministros</p>
+                <p>Fecha: ${new Date().toLocaleString()}</p>
+            </div>
+            <hr>
+    `;
+    
+    let total = 0;
+    for (const [id, item] of Object.entries(carrito)) {
+        ticket += `
+            <div style="display: flex; justify-content: space-between;">
+                <span>${item.nombre}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>${item.cantidad} x $${item.precio.toFixed(2)}</span>
+                <span>$${item.subtotal.toFixed(2)}</span>
+            </div>
+            <br>
+        `;
+        total += item.subtotal;
+    }
+    
+    ticket += `
+            <hr>
+            <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                <span>TOTAL:</span>
+                <span>$${total.toFixed(2)}</span>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <p>¡Gracias por su compra!</p>
+            </div>
+        </div>
+    `;
+    
+    const ventanaImpresion = window.open('', '_blank');
+    ventanaImpresion.document.write(ticket);
+    ventanaImpresion.document.close();
+    ventanaImpresion.print();
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarResumenCarrito();
+});
+</script>
+
+<style>
+.sticky-top {
+    top: 20px;
+}
+
+.input-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.producto-row:hover {
+    background-color: rgba(0,123,255,0.05);
+}
+
+.cantidad {
+    font-weight: bold;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}

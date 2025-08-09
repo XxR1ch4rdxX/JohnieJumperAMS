@@ -2,61 +2,489 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1>Resumen General</h1>
-<div class="row">
-    <div class="col-md-4">
-        <div class="card bg-primary text-white">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-speedometer2"></i> Panel de Control</h1>
+    <div class="text-muted">
+        <i class="bi bi-calendar"></i> {{ moment().format('dddd, D [de] MMMM [de] YYYY') }}
+    </div>
+</div>
+
+<!-- Tarjetas de estadísticas principales -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-primary text-white h-100">
             <div class="card-body">
-                <h5 class="card-title">Citas Hoy</h5>
-                <p class="card-text display-4">{{ citas_hoy|length }}</p>
-                <a href="{{ url_for('citas') }}" class="text-white">Ver todas</a>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-calendar-check display-4"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="card-title">Citas Hoy</h5>
+                        <h2 class="mb-0">{{ citas_hoy|length }}</h2>
+                        <small class="opacity-75">
+                            {% if citas_hoy|length > 0 %}
+                                Próxima: {{ citas_hoy[0][4].strftime('%H:%M') if citas_hoy[0][4] else 'Por confirmar' }}
+                            {% else %}
+                                No hay citas programadas
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('citas') }}" class="text-white text-decoration-none">
+                    Ver todas las citas <i class="bi bi-arrow-right"></i>
+                </a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card bg-success text-white">
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-success text-white h-100">
             <div class="card-body">
-                <h5 class="card-title">Ventas del Mes</h5>
-                <p class="card-text display-4">${{ "%.2f"|format(ventas_mes|default(0)) }}</p>
-                <a href="{{ url_for('informes') }}" class="text-white">Ver detalles</a>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-cash-coin display-4"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="card-title">Ventas del Mes</h5>
+                        <h2 class="mb-0">${{ "%.2f"|format(ventas_mes|default(0)) }}</h2>
+                        <small class="opacity-75">
+                            {% set dias_transcurridos = (moment().format('D')|int) %}
+                            Promedio diario: ${{ "%.2f"|format((ventas_mes|default(0) / dias_transcurridos) if dias_transcurridos > 0 else 0) }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('ventas') }}" class="text-white text-decoration-none">
+                    Nueva venta <i class="bi bi-arrow-right"></i>
+                </a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card bg-warning text-dark">
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-warning text-dark h-100">
             <div class="card-body">
-                <h5 class="card-title">Stock Bajo</h5>
-                <p class="card-text display-4">{{ productos_stock_bajo|length }}</p>
-                <a href="{{ url_for('productos', filtro='stock', valor=5) }}" class="text-dark">Ver productos</a>
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-exclamation-triangle display-4"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="card-title">Stock Bajo</h5>
+                        <h2 class="mb-0">{{ productos_stock_bajo|length }}</h2>
+                        <small>
+                            {% if productos_stock_bajo|length > 0 %}
+                                Requieren reabastecimiento
+                            {% else %}
+                                Todo en orden
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('productos', filtro='stock', valor=10) }}" class="text-dark text-decoration-none">
+                    Ver productos <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-truck display-4"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="card-title">Pedidos Pendientes</h5>
+                        <h2 class="mb-0">0</h2>
+                        <small class="opacity-75">Proveedores esperando</small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('pedidos') }}" class="text-white text-decoration-none">
+                    Gestionar pedidos <i class="bi bi-arrow-right"></i>
+                </a>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Últimas Citas</h5>
+<div class="row">
+    <!-- Citas de hoy -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-calendar-day"></i> Agenda de Hoy</h5>
             </div>
             <div class="card-body">
-                <table class="table">
-                    <!-- Tabla con últimas citas -->
-                </table>
+                {% if citas_hoy %}
+                <div class="list-group list-group-flush">
+                    {% for cita in citas_hoy[:5] %}
+                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">{{ cita[1] or 'Cliente no especificado' }}</div>
+                            <small class="text-muted">
+                                <i class="bi bi-heart"></i> {{ cita[2] or 'Animal no especificado' }} • 
+                                {{ cita[3] or 'Servicio general' }}
+                            </small>
+                        </div>
+                        <small class="text-muted">
+                            {{ cita[4].strftime('%H:%M') if cita[4] else 'Hora por confirmar' }}
+                        </small>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if citas_hoy|length > 5 %}
+                    <div class="list-group-item text-center">
+                        <small class="text-muted">
+                            Y {{ citas_hoy|length - 5 }} citas más...
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-x display-1 text-muted"></i>
+                    <p class="text-muted mt-2">No hay citas programadas para hoy</p>
+                    <a href="{{ url_for('citas') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus"></i> Agendar Nueva Cita
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Productos Más Vendidos</h5>
+    
+    <!-- Acciones rápidas -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Acciones Rápidas</h5>
             </div>
             <div class="card-body">
-                <table class="table">
-                    <!-- Tabla con productos más vendidos -->
-                </table>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <a href="{{ url_for('ventas') }}" class="btn btn-outline-success w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="bi bi-cart-plus display-6 mb-2"></i>
+                            <span>Nueva Venta</span>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('citas') }}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="bi bi-calendar-plus display-6 mb-2"></i>
+                            <span>Nueva Cita</span>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('productos') }}" class="btn btn-outline-info w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="bi bi-box-seam display-6 mb-2"></i>
+                            <span>Nuevo Producto</span>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('pedidos') }}" class="btn btn-outline-warning w-100 h-100 d-flex flex-column justify-content-center">
+                            <i class="bi bi-truck display-6 mb-2"></i>
+                            <span>Nuevo Pedido</span>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<div class="row">
+    <!-- Productos con stock bajo -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning"></i> Productos con Stock Bajo</h5>
+                <a href="{{ url_for('pedidos') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-plus"></i> Crear Pedido
+                </a>
+            </div>
+            <div class="card-body">
+                {% if productos_stock_bajo %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock Actual</th>
+                                <th>Precio</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in productos_stock_bajo[:8] %}
+                            <tr>
+                                <td>
+                                    <strong>{{ producto[1] }}</strong>
+                                    {% if producto[5] %}
+                                    <br><small class="text-muted">Caduca: {{ producto[5].strftime('%d/%m/%Y') }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if producto[4] < 5 %}danger{% elif producto[4] < 10 %}warning{% else %}success{% endif %}">
+                                        {{ producto[4] }} unidades
+                                    </span>
+                                </td>
+                                <td>${{ "%.2f"|format(producto[3]) }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="crearPedidoRapido({{ producto[0] }})">
+                                        <i class="bi bi-plus-circle"></i> Pedir
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if productos_stock_bajo|length > 8 %}
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('productos', filtro='stock', valor=10) }}" class="btn btn-outline-secondary btn-sm">
+                        Ver todos los {{ productos_stock_bajo|length }} productos
+                    </a>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-check-circle display-1 text-success"></i>
+                    <p class="text-muted mt-2">Todos los productos tienen stock suficiente</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen semanal -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Resumen Semanal</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Citas Completadas</small>
+                        <small class="fw-bold">15</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: 75%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Ventas Realizadas</small>
+                        <small class="fw-bold">23</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" style="width: 85%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Productos Añadidos</small>
+                        <small class="fw-bold">8</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-info" style="width: 40%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Pedidos Procesados</small>
+                        <small class="fw-bold">5</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" style="width: 60%"></div>
+                    </div>
+                </div>
+                
+                <hr>
+                <div class="text-center">
+                    <a href="{{ url_for('informes') }}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-bar-chart"></i> Ver Informe Completo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alertas y notificaciones -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-left-warning">
+            <div class="card-body">
+                <h6 class="text-warning"><i class="bi bi-bell"></i> Notificaciones del Sistema</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-clock text-warning me-2"></i>
+                            <small>3 citas próximas en las próximas 2 horas</small>
+                        </div>
+                    </div>
+                    {% if productos_stock_bajo|length > 0 %}
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                            <small>{{ productos_stock_bajo|length }} productos necesitan reabastecimiento</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-calendar-event text-info me-2"></i>
+                            <small>5 productos próximos a caducar este mes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear pedido rápido -->
+<div class="modal fade" id="pedidoRapidoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Pedido Rápido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formPedidoRapido">
+                    <div class="mb-3">
+                        <label class="form-label">Producto</label>
+                        <input type="text" id="nombreProductoPedido" class="form-control" readonly>
+                        <input type="hidden" id="idProductoPedido">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cantidad a Pedir</label>
+                        <input type="number" id="cantidadPedido" class="form-control" min="1" value="20">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Proveedor</label>
+                        <select id="proveedorPedido" class="form-select" required>
+                            <option value="">Seleccionar proveedor...</option>
+                            <!-- Se llenará dinámicamente -->
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="procesarPedidoRapido()">
+                    <i class="bi bi-check"></i> Crear Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function crearPedidoRapido(productoId) {
+    // Esta función abriría el modal para crear un pedido rápido
+    // Por ahora solo redirige a la página de pedidos
+    window.location.href = "{{ url_for('pedidos') }}";
+}
+
+function procesarPedidoRapido() {
+    // Procesar el pedido rápido
+    alert('Funcionalidad de pedido rápido en desarrollo');
+}
+
+// Actualizar hora en tiempo real
+function actualizarHora() {
+    const ahora = new Date();
+    const opciones = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    };
+    const fechaFormateada = ahora.toLocaleDateString('es-ES', opciones);
+    
+    const elementoFecha = document.querySelector('.text-muted .bi-calendar').parentElement;
+    if (elementoFecha) {
+        elementoFecha.innerHTML = '<i class="bi bi-calendar"></i> ' + fechaFormateada;
+    }
+}
+
+// Actualizar cada minuto
+setInterval(actualizarHora, 60000);
+
+// Animaciones al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    // Animar las tarjetas de estadísticas
+    const tarjetas = document.querySelectorAll('.card');
+    tarjetas.forEach((tarjeta, index) => {
+        setTimeout(() => {
+            tarjeta.style.opacity = '0';
+            tarjeta.style.transform = 'translateY(20px)';
+            tarjeta.style.transition = 'all 0.5s ease';
+            setTimeout(() => {
+                tarjeta.style.opacity = '1';
+                tarjeta.style.transform = 'translateY(0)';
+            }, 100);
+        }, index * 100);
+    });
+});
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.progress {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.border-left-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.display-6 {
+    font-size: 2rem;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    transition: all 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease-out;
+}
+</style>
 {% endblock %}
