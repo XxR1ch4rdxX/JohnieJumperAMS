@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 09-08-2025 a las 22:43:21
+-- Tiempo de generación: 10-08-2025 a las 08:16:26
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.0.30
 
@@ -332,7 +332,8 @@ CREATE TABLE `animales` (
 
 INSERT INTO `animales` (`id_animal`, `nombre`, `especie`, `raza`, `edad`, `cliente_id`, `sexo`, `peso`, `historial_medico`) VALUES
 (4, 'freson cara blanca', 'caballo', 'frezon', 12, 14, 'Macho', NULL, NULL),
-(5, 'freson cara blanca', 'caballos', 'frezon', 12, 15, '', NULL, NULL);
+(5, 'freson cara blanca', 'caballos', 'frezon', 12, 15, '', NULL, NULL),
+(6, 'freson cara blanca', 'caballos', 'frezon', 12, 16, 'Macho', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -413,7 +414,8 @@ CREATE TABLE `citas` (
 
 INSERT INTO `citas` (`id_cita`, `cliente_id`, `animal_id`, `servicio_id`, `fecha`, `estado_id`, `observaciones`) VALUES
 (1, 14, 4, 1, '2025-08-09', 1, 'Motivo: consulta general\nObservaciones: el animal camina raro'),
-(2, 15, 5, 1, '2025-08-09', 1, 'Motivo: aa\nObservaciones: aa');
+(2, 15, 5, 1, '2025-08-09', 1, 'Motivo: aa\nObservaciones: aa'),
+(3, 16, 6, 1, '2025-08-11', 1, 'Motivo: ayuda general\nObservaciones: niguna');
 
 -- --------------------------------------------------------
 
@@ -444,7 +446,8 @@ INSERT INTO `clientes` (`id_cliente`, `nombre`, `telefono`, `direccion`) VALUES
 (9, 'Chonita', '555000009', 'Calle Ejido #9'),
 (10, 'Eulalio', '555000010', 'Calle Ejido #10'),
 (14, 'pancho perez', '3425234534', 'iapusrfoiubajcnpiu'),
-(15, 'pancho perez2', '3425234534', 'iapusrfoiubajcnpiu');
+(15, 'pancho perez2', '3425234534', 'iapusrfoiubajcnpiu'),
+(16, 'pancho perez2', '3425234534', 'iapusrfoiubajcnpiu');
 
 -- --------------------------------------------------------
 
@@ -819,7 +822,7 @@ ALTER TABLE `ventas`
 -- AUTO_INCREMENT de la tabla `animales`
 --
 ALTER TABLE `animales`
-  MODIFY `id_animal` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id_animal` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `aplicacionesservicio`
@@ -837,13 +840,13 @@ ALTER TABLE `categorias_productos`
 -- AUTO_INCREMENT de la tabla `citas`
 --
 ALTER TABLE `citas`
-  MODIFY `id_cita` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_cita` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `clientes`
 --
 ALTER TABLE `clientes`
-  MODIFY `id_cliente` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id_cliente` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT de la tabla `configuraciones`
