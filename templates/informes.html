@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+{% block title %}Informes y Reportes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 text-primary">
+            <i class="bi bi-graph-up-arrow"></i> Informes y Reportes
+        </h1>
+        <div class="btn-group">
+            <button class="btn btn-outline-success" onclick="exportarReporte()">
+                <i class="bi bi-file-excel"></i> Exportar Excel
+            </button>
+            <button class="btn btn-outline-danger" onclick="exportarPDF()">
+                <i class="bi bi-file-pdf"></i> Exportar PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <i class="bi bi-people-fill text-primary" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 text-primary">{{ estadisticas[0] }}</h3>
+                    <p class="card-text">Clientes Registrados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <i class="bi bi-box-seam text-success" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 text-success">{{ estadisticas[1] }}</h3>
+                    <p class="card-text">Productos en Catálogo</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 text-warning">{{ estadisticas[2] }}</h3>
+                    <p class="card-text">Stock Bajo</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <i class="bi bi-cart-fill text-info" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 text-info">{{ estadisticas[3] }}</h3>
+                    <p class="card-text">Pedidos Pendientes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <i class="bi bi-currency-dollar text-success" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 text-success">${{ "%.0f"|format(estadisticas[4]) }}</h3>
+                    <p class="card-text">Ventas Este Mes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-secondary">
+                <div class="card-body">
+                    <i class="bi bi-arrow-up-circle text-secondary" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 text-secondary">
+                        {% set diferencia = estadisticas[4] - estadisticas[5] %}
+                        {% if diferencia >= 0 %}+{% endif %}{{ "%.0f"|format(diferencia) }}
+                    </h3>
+                    <p class="card-text">vs Mes Anterior</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Tablas -->
+    <div class="row">
+        <!-- Ventas Mensuales -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="bi bi-bar-chart-fill"></i> Ventas de los Últimos 6 Meses</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ventasChart" height="100"></canvas>
+                    
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mes</th>
+                                    <th class="text-end">Ventas</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Promedio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for venta in ventas_mensuales %}
+                                <tr>
+                                    <td>{{ venta[1] }}</td>
+                                    <td class="text-end">{{ venta[3] }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(venta[2]) }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(venta[2] / venta[3]) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Productos Más Vendidos -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="bi bi-trophy-fill"></i> Top 10 Productos</h5>
+                    <small>Últimos 3 meses</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Vendido</th>
+                                    <th class="text-end">Ingresos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for producto in productos_top %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <small>{{ producto[0][:20] }}{% if producto[0]|length > 20 %}...{% endif %}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-primary">{{ producto[1] }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <small>${{ "%.0f"|format(producto[2]) }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Servicios Más Solicitados -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="bi bi-heart-pulse-fill"></i> Servicios Más Solicitados</h5>
+                    <small>Últimos 3 meses</small>
+                </div>
+                <div class="card-body">
+                    <canvas id="serviciosChart" height="150"></canvas>
+                    
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Servicio</th>
+                                    <th class="text-end">Solicitudes</th>
+                                    <th class="text-end">Ingresos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for servicio in servicios_top %}
+                                <tr>
+                                    <td>{{ servicio[0] }}</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">{{ servicio[1] }}</span>
+                                    </td>
+                                    <td class="text-end">${{ "%.2f"|format(servicio[2]) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proveedores Top -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="bi bi-truck"></i> Top 5 Proveedores</h5>
+                    <small>Por número de pedidos (últimos 6 meses)</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Proveedor</th>
+                                    <th class="text-end">Pedidos</th>
+                                    <th class="text-end">Total Comprado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proveedor in proveedores_top %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ proveedor[0] }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-warning text-dark">{{ proveedor[1] or 0 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success">${{ "%.2f"|format(proveedor[2] or 0) }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <canvas id="proveedoresChart" height="120"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen Ejecutivo -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5><i class="bi bi-clipboard-data-fill"></i> Resumen Ejecutivo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Análisis de Ventas:</h6>
+                            <ul class="list-unstyled">
+                                {% set total_ventas = ventas_mensuales|sum(attribute=2) %}
+                                <li><i class="bi bi-check-circle text-success"></i> Ventas totales 6 meses: <strong>${{ "%.2f"|format(total_ventas) }}</strong></li>
+                                <li><i class="bi bi-check-circle text-success"></i> Promedio mensual: <strong>${{ "%.2f"|format(total_ventas / 6) }}</strong></li>
+                                <li><i class="bi bi-info-circle text-info"></i> Productos con mayor rotación: <strong>{{ productos_top[0][0] if productos_top else 'N/A' }}</strong></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Gestión de Inventario:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-exclamation-triangle text-warning"></i> Productos con stock bajo: <strong>{{ estadisticas[2] }}</strong></li>
+                                <li><i class="bi bi-cart text-info"></i> Pedidos pendientes: <strong>{{ estadisticas[3] }}</strong></li>
+                                <li><i class="bi bi-truck text-primary"></i> Proveedor principal: <strong>{{ proveedores_top[0][0] if proveedores_top else 'N/A' }}</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts para gráficos -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Gráfico de Ventas Mensuales
+const ventasCtx = document.getElementById('ventasChart').getContext('2d');
+new Chart(ventasCtx, {
+    type: 'line',
+    data: {
+        labels: [
+            {% for venta in ventas_mensuales %}
+                '{{ venta[1] }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Ventas ($)',
+            data: [
+                {% for venta in ventas_mensuales %}
+                    {{ venta[2] }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de Servicios (Doughnut)
+const serviciosCtx = document.getElementById('serviciosChart').getContext('2d');
+new Chart(serviciosCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [
+            {% for servicio in servicios_top %}
+                '{{ servicio[0] }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for servicio in servicios_top %}
+                    {{ servicio[1] }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: [
+                '#17a2b8', '#28a745', '#ffc107', '#dc3545', '#6f42c1',
+                '#fd7e14', '#20c997', '#e83e8c', '#6c757d', '#007bff'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 15,
+                    font: {
+                        size: 11
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de Proveedores (Bar horizontal)
+const proveedoresCtx = document.getElementById('proveedoresChart').getContext('2d');
+new Chart(proveedoresCtx, {
+    type: 'bar',
+    data: {
+        labels: [
+            {% for proveedor in proveedores_top %}
+                '{{ proveedor[0][:15] }}{% if proveedor[0]|length > 15 %}...{% endif %}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Pedidos',
+            data: [
+                {% for proveedor in proveedores_top %}
+                    {{ proveedor[1] or 0 }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: '#ffc107',
+            borderColor: '#ffb302',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Funciones de exportación
+function exportarReporte() {
+    alert('Funcionalidad de exportación a Excel en desarrollo');
+    // Aquí implementarías la lógica para exportar a Excel
+}
+
+function exportarPDF() {
+    alert('Funcionalidad de exportación a PDF en desarrollo');
+    // Aquí implementarías la lógica para exportar a PDF
+}
+
+// Actualizar datos cada 30 segundos
+setInterval(function() {
+    // Opcional: realizar una llamada AJAX para actualizar los datos
+    console.log('Datos actualizados automáticamente');
+}, 30000);
+</script>
+
+<style>
+.card {
+    transition: transform 0.2s;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.table th {
+    border-top: none;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+
+.list-unstyled li {
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .h2 {
+        font-size: 1.5rem;
+    }
+    
+    .col-md-2 {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %}

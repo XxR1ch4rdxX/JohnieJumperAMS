@@ -1,6 +1,5 @@
-# Reemplaza tu app.py existente con este código corregido
 from flask_moment import Moment
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
@@ -50,12 +49,22 @@ def dashboard():
     cur.execute("SELECT * FROM productos WHERE stock < 10")
     productos_stock_bajo = cur.fetchall()
 
+    # Total de productos
+    cur.execute("SELECT COUNT(*) as total FROM productos")
+    total_productos = cur.fetchone()[0]
+
+    # Total de clientes
+    cur.execute("SELECT COUNT(*) as total FROM clientes")
+    total_clientes = cur.fetchone()[0]
+
     cur.close()
     
     return render_template('dashboard.html', 
                          citas_hoy=citas_hoy,
                          ventas_mes=ventas_mes,
-                         productos_stock_bajo=productos_stock_bajo)
+                         productos_stock_bajo=productos_stock_bajo,
+                         total_productos=total_productos,
+                         total_clientes=total_clientes)
 
 @app.route('/productos')
 def productos():
@@ -338,49 +347,6 @@ def animales_cliente(cliente_id):
     cur.close()
     return render_template('animales.html', animales=animales)
 
-# Rutas para informes/dashboard
-@app.route('/informes')
-def informes():
-    cur = mysql.connection.cursor()
-
-    # Ventas del mes
-    cur.execute("""
-        SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, SUM(total) as total
-        FROM ventas
-        WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        GROUP BY mes
-        ORDER BY mes
-    """)
-    ventas_mensuales = cur.fetchall()
-
-    # Productos más vendidos
-    cur.execute("""
-        SELECT p.nombre, SUM(dv.cantidad) as total_vendido
-        FROM detallesventas dv
-        JOIN productos p ON dv.producto_id = p.id_producto
-        GROUP BY p.nombre
-        ORDER BY total_vendido DESC
-        LIMIT 5
-    """)
-    productos_top = cur.fetchall()
-
-    # Servicios más solicitados
-    cur.execute("""
-        SELECT s.nombre, COUNT(*) as total
-        FROM citas c
-        JOIN servicios s ON c.servicio_id = s.id_servicio
-        WHERE c.fecha >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
-        GROUP BY s.nombre
-        ORDER BY total DESC
-        LIMIT 5
-    """)
-    servicios_top = cur.fetchall()
-
-    cur.close()
-    return render_template('informes.html',
-                           ventas_mensuales=ventas_mensuales,
-                           productos_top=productos_top,
-                           servicios_top=servicios_top)
 
 @app.route('/registro', methods=['GET', 'POST'])
 def registro():
@@ -564,60 +530,237 @@ def pedidos():
                            proveedores=proveedores,
                            pedidos_pendientes=pedidos_pendientes)
 
+
+
+
+# NUEVA RUTA PARA GENERAR TICKET DE PEDIDO
+@app.route('/ticket_pedido/<int:pedido_id>')
+def generar_ticket_pedido(pedido_id):
+    cur = mysql.connection.cursor()
+    
+    # Obtener información del pedido
+    cur.execute("""
+        SELECT p.id_pedido, p.fecha, p.total, pr.nombre as proveedor,
+               pr.telefono, pr.direccion, e.nombre as estado
+        FROM pedidos p
+        JOIN proveedores pr ON p.proveedor_id = pr.id_proveedor
+        LEFT JOIN estatus e ON p.estado_id = e.id_estado
+        WHERE p.id_pedido = %s
+    """, [pedido_id])
+    pedido = cur.fetchone()
+    
+    # Obtener detalles del pedido
+    cur.execute("""
+        SELECT dp.cantidad, dp.precio_unitario, pr.nombre,
+               (dp.cantidad * dp.precio_unitario) as subtotal
+        FROM detallespedidos dp
+        JOIN productos pr ON dp.producto_id = pr.id_producto
+        WHERE dp.pedido_id = %s
+    """, [pedido_id])
+    detalles = cur.fetchall()
+    
+    cur.close()
+    
+    return render_template('ticket_pedido.html', pedido=pedido, detalles=detalles)
+
+# NUEVA RUTA PARA GENERAR TICKET DE VENTA
+@app.route('/ticket_venta/<int:venta_id>')
+def generar_ticket_venta(venta_id):
+    cur = mysql.connection.cursor()
+    
+    # Obtener información de la venta
+    cur.execute("""
+        SELECT v.id_venta, v.fecha, v.total, cl.nombre as cliente
+        FROM ventas v
+        LEFT JOIN clientes cl ON v.cliente_id = cl.id_cliente
+        WHERE v.id_venta = %s
+    """, [venta_id])
+    venta = cur.fetchone()
+    
+    # Obtener detalles de la venta
+    cur.execute("""
+        SELECT dv.cantidad, dv.precio_unitario, p.nombre,
+               (dv.cantidad * dv.precio_unitario) as subtotal
+        FROM detallesventas dv
+        JOIN productos p ON dv.producto_id = p.id_producto
+        WHERE dv.venta_id = %s
+    """, [venta_id])
+    detalles = cur.fetchall()
+    
+    cur.close()
+    
+    return render_template('ticket_venta.html', venta=venta, detalles=detalles)
+
+# NUEVA RUTA PARA INFORMES
+@app.route('/informes')
+def informes():
+    cur = mysql.connection.cursor()
+
+    # Ventas mensuales (últimos 6 meses)
+    cur.execute("""
+        SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, 
+               DATE_FORMAT(fecha, '%M %Y') as mes_nombre,
+               SUM(total) as total,
+               COUNT(*) as num_ventas
+        FROM ventas
+        WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        GROUP BY mes, mes_nombre
+        ORDER BY mes DESC
+    """)
+    ventas_mensuales = cur.fetchall()
+
+    # Productos más vendidos
+    cur.execute("""
+        SELECT p.nombre, SUM(dv.cantidad) as total_vendido,
+               SUM(dv.cantidad * dv.precio_unitario) as ingresos
+        FROM detallesventas dv
+        JOIN productos p ON dv.producto_id = p.id_producto
+        JOIN ventas v ON dv.venta_id = v.id_venta
+        WHERE v.fecha >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+        GROUP BY p.nombre
+        ORDER BY total_vendido DESC
+        LIMIT 10
+    """)
+    productos_top = cur.fetchall()
+
+    # Servicios más solicitados
+    cur.execute("""
+        SELECT s.nombre, COUNT(*) as total, SUM(s.precio) as ingresos
+        FROM citas c
+        JOIN servicios s ON c.servicio_id = s.id_servicio
+        WHERE c.fecha >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+        GROUP BY s.nombre, s.precio
+        ORDER BY total DESC
+        LIMIT 10
+    """)
+    servicios_top = cur.fetchall()
+
+    # Estadísticas generales
+    cur.execute("""
+        SELECT 
+            (SELECT COUNT(*) FROM clientes) as total_clientes,
+            (SELECT COUNT(*) FROM productos) as total_productos,
+            (SELECT COUNT(*) FROM productos WHERE stock < 10) as productos_stock_bajo,
+            (SELECT COUNT(*) FROM pedidos WHERE estado_id IN (1,2)) as pedidos_pendientes,
+            (SELECT IFNULL(SUM(total), 0) FROM ventas WHERE MONTH(fecha) = MONTH(CURDATE())) as ventas_mes_actual,
+            (SELECT IFNULL(SUM(total), 0) FROM ventas WHERE MONTH(fecha) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))) as ventas_mes_anterior
+    """)
+    estadisticas = cur.fetchone()
+
+    # Proveedores más utilizados
+    cur.execute("""
+        SELECT pr.nombre, COUNT(*) as num_pedidos, 
+               IFNULL(SUM(p.total), 0) as total_comprado
+        FROM proveedores pr
+        LEFT JOIN pedidos p ON pr.id_proveedor = p.proveedor_id
+        WHERE p.fecha >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) OR p.fecha IS NULL
+        GROUP BY pr.id_proveedor, pr.nombre
+        ORDER BY num_pedidos DESC
+        LIMIT 5
+    """)
+    proveedores_top = cur.fetchall()
+
+    cur.close()
+    
+    return render_template('informes.html',
+                           ventas_mensuales=ventas_mensuales,
+                           productos_top=productos_top,
+                           servicios_top=servicios_top,
+                           estadisticas=estadisticas,
+                           proveedores_top=proveedores_top)
+
+
+
+# ESTA ES LA RUTA CLAVE QUE ESTABA FALLANDO
 @app.route('/procesar_pedido', methods=['POST'])
 def procesar_pedido():
     try:
-        proveedor_id = request.form['proveedor_id']
-        productos = []
-
-        # Recoger productos del formulario
-        for key, value in request.form.items():
-            if key.startswith('producto_'):
-                producto_id = key.replace('producto_', '')
-                cantidad = int(value)
-                if cantidad > 0:
-                    productos.append({
-                        'id': producto_id,
-                        'cantidad': cantidad
-                    })
-
-        if not productos:
-            flash('Debe seleccionar al menos un producto', 'danger')
+        print("=== DEBUG PEDIDO ===")
+        print("Form data:", dict(request.form))
+        
+        proveedor_id = request.form.get('proveedor_id')
+        print(f"Proveedor ID: {proveedor_id}")
+        
+        if not proveedor_id:
+            flash('Debe seleccionar un proveedor', 'danger')
             return redirect(url_for('pedidos'))
 
+        # Procesar productos del formulario
+        productos_pedido = []
+        total_pedido = 0
+
+        for key, value in request.form.items():
+            print(f"Processing: {key} = {value}")
+            if key.startswith('producto_'):
+                try:
+                    cantidad = int(value)
+                    if cantidad > 0:
+                        producto_id = key.replace('producto_', '')
+                        print(f"Producto ID: {producto_id}, Cantidad: {cantidad}")
+                        
+                        # Obtener información del producto
+                        cur = mysql.connection.cursor()
+                        cur.execute("SELECT nombre, precio, stock FROM productos WHERE id_producto = %s", [producto_id])
+                        producto_info = cur.fetchone()
+                        print(f"Producto info: {producto_info}")
+                        
+                        if producto_info:
+                            precio_unitario = float(producto_info[1])
+                            subtotal = precio_unitario * cantidad
+                            total_pedido += subtotal
+                            
+                            productos_pedido.append({
+                                'id': producto_id,
+                                'nombre': producto_info[0],
+                                'cantidad': cantidad,
+                                'precio_unitario': precio_unitario,
+                                'subtotal': subtotal
+                            })
+                        else:
+                            print(f"ERROR: Producto {producto_id} no encontrado")
+                except ValueError as e:
+                    print(f"Error processing quantity: {e}")
+                    continue
+
+        print(f"Products to order: {productos_pedido}")
+        print(f"Total: {total_pedido}")
+
+        if not productos_pedido:
+            flash('Debe agregar al menos un producto al pedido', 'danger')
+            return redirect(url_for('pedidos'))
+
+        # Crear pedido en la base de datos
         cur = mysql.connection.cursor()
-
-        # Calcular total del pedido
-        total = 0
-        for producto in productos:
-            cur.execute("SELECT precio FROM productos WHERE id_producto = %s", [producto['id']])
-            precio = cur.fetchone()[0]
-            total += precio * producto['cantidad']
-
-        # Crear pedido
+        
+        # Insertar pedido
         cur.execute("""
             INSERT INTO pedidos (proveedor_id, fecha, estado_id, total)
             VALUES (%s, NOW(), %s, %s)
-        """, (proveedor_id, 1, total))
+        """, (proveedor_id, 1, total_pedido))  # Estado 1 = Pendiente
+        
         pedido_id = cur.lastrowid
+        print(f"Pedido ID creado: {pedido_id}")
 
-        # Agregar detalles del pedido
-        for producto in productos:
-            cur.execute("SELECT precio FROM productos WHERE id_producto = %s", [producto['id']])
-            precio = cur.fetchone()[0]
-
+        # Insertar detalles del pedido
+        for producto in productos_pedido:
             cur.execute("""
                 INSERT INTO detallespedidos (pedido_id, producto_id, cantidad, precio_unitario)
                 VALUES (%s, %s, %s, %s)
-            """, (pedido_id, producto['id'], producto['cantidad'], precio))
+            """, (pedido_id, producto['id'], producto['cantidad'], producto['precio_unitario']))
+            print(f"Detalle insertado: {producto['nombre']} - {producto['cantidad']} unidades")
 
         mysql.connection.commit()
         cur.close()
 
-        flash(f'Pedido #{pedido_id} registrado correctamente. Total: ${total:.2f}', 'success')
-        return redirect(url_for('pedidos'))
+        flash(f'Pedido #{pedido_id} creado correctamente. Total: ${total_pedido:.2f}', 'success')
+        
+        # Redirigir a la página de ticket
+        return redirect(url_for('generar_ticket_pedido', pedido_id=pedido_id))
 
     except Exception as e:
+        print(f"ERROR en procesar_pedido: {str(e)}")
+        import traceback
+        traceback.print_exc()
         mysql.connection.rollback()
         flash(f'Error al procesar el pedido: {str(e)}', 'danger')
         return redirect(url_for('pedidos'))
@@ -635,6 +778,10 @@ def recibir_pedido(pedido_id):
         """, [pedido_id])
         detalles = cur.fetchall()
 
+        if not detalles:
+            flash('Pedido no encontrado o sin productos', 'danger')
+            return redirect(url_for('pedidos'))
+
         # Actualizar stock de cada producto
         for detalle in detalles:
             producto_id, cantidad = detalle
@@ -644,7 +791,7 @@ def recibir_pedido(pedido_id):
                 WHERE id_producto = %s
             """, (cantidad, producto_id))
 
-        # Marcar pedido como completado
+        # Marcar pedido como completado (estado 3)
         cur.execute("""
             UPDATE pedidos 
             SET estado_id = 3 
@@ -654,7 +801,7 @@ def recibir_pedido(pedido_id):
         mysql.connection.commit()
         cur.close()
 
-        flash('Pedido marcado como recibido y stock actualizado', 'success')
+        flash(f'Pedido #{pedido_id} marcado como recibido y stock actualizado', 'success')
         return redirect(url_for('pedidos'))
 
     except Exception as e:
